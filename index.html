@@ -1,0 +1,119 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Git Server</title>
+        <!--<link href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/css/bootstrap-combined.min.css" rel="stylesheet">-->
+        <link href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/css/bootstrap-combined.no-icons.min.css" rel="stylesheet">
+    </head>
+    <body ng-app>
+        <div class='container-fluid,ng-cloak' ng-controller='Ctrllr'>
+            <div class='row-fluid'><h1 class='span12'>Git Server</h1></div>
+            <div class='row-fluid'>
+                <div class='span12'>
+                    <table class='table table-striped'>
+                        <tr ng-repeat='repo in repos'>
+                            <th ng-click='toggle(repo)'>{{repo.name}}</th>
+                            <th ng-click='toggle(repo)'>{{repo.description}}</th>
+                            <td ng-click='toggle(repo)' ng-show='!repo.expanded'>{{repo.lastCommit.author}}</td>
+                            <td ng-click='toggle(repo)' ng-show='!repo.expanded'>{{repo.lastCommit.message}}</td>
+                            <td ng-show='!repo.expanded'>{{repo.lastCommit.age}}</td>
+                            <td ng-show='repo.expanded' colspan='3'>
+                                <ul class='nav nav-tabs'>
+                                    <li ng-class="{ 'active' : commitTabActive}" ng-click='commitTabActive=true'><a href='#'>Commits</a></li>
+                                    <li ng-class="{ 'active' : !commitTabActive}" ng-click='commitTabActive=false'><a href='#'>Files</a></li>
+                                </ul>
+                                <table ng-controller='Commits' class='well' width='100%' ng-show='commitTabActive'>
+                                    <tr ng-repeat='commit in commits'>
+                                        <th>{{commit.author}}</th>
+                                        <td ng-click='showDiff(repo, commit)'>{{commit.message}}</td>
+                                        <td>{{commit.age}}</td>
+                                        <td>{{commit.date| date}}</td>
+                                    </tr>
+                                </table>
+                                <table ng-controller='Files' class='well' width='100%' ng-hide='commitTabActive'>
+                                    <tr ng-repeat='file in files'>
+                                        <td>{{file.type}}</td>
+                                        <th ng-click='select(repo, file)'>{{file.path}}</th>
+                                        <td>{{file.length}}</td>
+                                        <td><a href='./{{repo.name}}/get/{{file.path}}?raw=true' target='dl'>Raw</a></td>
+                                    </tr>
+                                </table>
+                            </td>
+                            <td ><a href='./{{repo.name}}.tar.xz'>tar.xz</a> &middot; <a href='./{{repo.name}}.tar.xz'>tar.bz2</a> &middot; <a href='./{{repo.name}}.zip'>zip</a></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class='modal' style='width: 800px' ng-show='diff'>
+            <div class='modal-header'>
+                <div class='pull-right' style='margin-top: 1em;'><button class='btn, btn-primary' ng-click='diff = null'>Close</button></div>
+                <h2>{{modalTitle}}</h2>
+                <pre style='overflow: auto; width: 80%; height: 600px; float: right'>{{diff}}</pre>
+            </div>
+        </div>
+
+        <script src="//codeorigin.jquery.com/jquery-2.0.3.min.js"></script>
+        <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.1.5/angular.min.js"></script>
+        <script src="//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/js/bootstrap.min.js"></script>
+        <script type="text/javascript">
+                    function Ctrllr($scope, $http, $rootScope) {
+                        $scope.commitTabActive = true;
+                        $rootScope.modalTitle = 'Diff';
+                        
+                        $scope.toggle = function(repo) {
+                            $scope.repos.forEach(function(r) {
+                                if (r !== repo) {
+                                    r.expanded = false;
+                                }
+                            })
+                            repo.expanded = !repo.expanded;
+                            $rootScope.diff = null;
+                        }
+                        $http.get('./').success(function(dta) {
+                            dta.forEach(function(repo) {
+                                repo.expanded = false;
+                            })
+                            $scope.repos = dta;
+                        });
+                    }
+
+                    function Commits($scope, $http, $rootScope) {
+                        $http.get('/git/' + $scope.repo.name).success(function(log) {
+                            log.forEach(function(cmt) {
+                                if (typeof cmt.date === 'string') {
+                                    cmt.date = new Date(Date.parse(cmt.date));
+                                }
+                            })
+                            $scope.commits = log;
+                        });
+
+                        $scope.showDiff = function(repo, commit) {
+                            $rootScope.modalTitle = repo.name + ' ' + commit.hash;
+                            $rootScope.diff = '...loading ' + repo.name + " " + commit.hash + '...'
+                            $http.get('./' + repo.name + '/' + commit.hash).success(function(diff) {
+                                $rootScope.diff = diff;
+                                $rootScope.diffVisible = true;
+                            })
+                        }
+                    }
+
+                    function Diff($rootScope) {
+
+                    }
+                    
+                    function Files($scope, $http, $rootScope) {
+                        $http.get('./' + $scope.repo.name + '/list').success(function(files) {
+                            $scope.files = files;
+                        });
+                        $scope.select = function(repo, file) {
+                            $rootScope.diff = '...loading ' + file.path + '...';
+                            $rootScope.modalTitle = file.name;
+                            $http.get('./' + $scope.repo.name + '/get/' + file.path).success(function(file) {
+                                $rootScope.diff = file;
+                            })
+                        }
+                    }
+        </script>
+    </body>
+</html>
