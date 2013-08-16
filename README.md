@@ -1,14 +1,18 @@
-GitTattle
+Gittattle
 =========
 
 Implements a simple, read-only REST API on top of a directory of Git repositories,
 allowing for basic browsing, and a simple single-page web UI on top of that.
+Does not require a working directory - files are served using ``git show``.
 
-Why?  Gitweb is awful, and cgit is painful to set up, and I actually don't want
-a full-fledged Git server, just a read-only web-UI to use with 
-[Gitolite](https://github.com/sitaramc/gitolite). It will not solve the world's 
-problems, but it does the job.  This is just to get a decent UI on the
-web with minimum pain.
+Why?  Gitweb is awful, Cgit is painful to set up;  and for a lot of cases,
+a full fledged push/pull-over-http server is more than you need.  It was 
+written with Gitolite](https://github.com/sitaramc/gitolite) in mind,
+but it will work with any system that contains a folder of Git repositories. 
+
+The idea is to painlessly 
+get provide a reasonable UI on the web with minimum pain, and provide a REST
+api for widget-like use-cases.
 
 It's written in node.js and can be run from the command-line.  You aim it at
 a folder full of Git repositories and go (make sure it runs as a user account 
