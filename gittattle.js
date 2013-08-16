@@ -19,8 +19,8 @@ var gitpattern = /(.*?)\.git/;
 var DEFAULT_COUNT = 30;
 
 var config = {
-//    gitdir: '/var/lib/gitolite/repositories',
-    gitdir: '/tmp/git',
+    gitdir: '/var/lib/gitolite/repositories',
+//    gitdir: '/tmp/git',
     urlpath: '/git',
     appendDotGitToRepoNames: true,
     port: 9902,
