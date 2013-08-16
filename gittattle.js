@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 var http = require('http'),
         fs = require('fs'),
         util = require('util'),
@@ -11,7 +12,7 @@ var http = require('http'),
 
 // GITTATTLE
 // ---------
-// Implements a very straing
+// Implements a very straightforward
 
 var file = 'gitattle.json';
 var gitpattern = /(.*?)\.git/;
@@ -46,6 +47,7 @@ var downloadRex = /\/git\/([^\/`'"'&|<>]*)\.([tarzipgb2x\.]*)$/;
 var router = new Router();
 if (config.serveIndexPage) {
     router.getAndHead(/\/git\/index.html/, getFile('index.html'), 'Index page');
+    router.getAndHead(/\/git\/ajax-loader.gif/, getFile('ajax-loader.gif'), 'Progress animation');
 }
 router.getAndHead('/git', list, 'List repositories');
 router.getAndHead(downloadRex, archive, 'Fetch an archive of a repository');
@@ -60,14 +62,41 @@ function getFile(file) {
     if (!fs.existsSync(pth)) {
         throw new Error(pth + " does not exist");
     }
+    var contentType = guessContentType(pth);
     return function serveFile(req, res) {
-        var stream = fs.createReadStream(pth);
-        res.writeHead(200, {'Content-Type': guessContentType(pth)});
-        stream.pipe(res);
+        fs.stat(pth, function(err, stat) {
+            if (err) {
+                return error(req, res, err);
+            }
+            if (req.headers['if-modified-since']) {
+                var date = new Date(req.headers['if-modified-since']);
+                if (date <= mtime) {
+                    res.writeHead(304)
+                    return res.end()
+                }
+            }
+            var mtime = stat.mtime;
+            var stream = fs.createReadStream(pth);
+            var hdrs = {
+                'Content-Type': contentType,
+                'Last-Modified': mtime
+            };
+            if (/image/.test(contentType) || /javascript/.test(contentType)) {
+                var expires = new Date();
+                expires.setFullYear(expires.getFullYear() + 10)
+                hdrs['Expires'] = expires
+                hdrs['Cache-Control'] = 'public, max-age=600000'
+            } else {
+                hdrs['Cache-Control'] = 'public, must-revalidate'
+            }
+            res.writeHead(200, hdrs);
+            stream.pipe(res);
+
+        });
     }
 }
 
-// tags and branches
+// PENDING: include tags and branches in basic repo info
 
 function copy(arr) {
     var result = [];
@@ -131,7 +160,9 @@ function diff(req, res) {
             timeout: config.fastTimeout
         }
         var cmdline = 'git diff-tree --patch-with-stat "' + commit + '"';
-        res.writeHead(200, {'Content-Type': 'text/plain; charset=UTF-8'});
+        var expires = new Date();
+        expires.setFullYear(expires.getFullYear() + 10);
+        res.writeHead(200, {'Content-Type': 'text/plain; charset=UTF-8', Expires: expires, 'Cache-Control': 'public'});
         var proc = child_process.exec(cmdline, opts);
         proc.stdout.pipe(res);
     });
@@ -148,7 +179,6 @@ function archive(req, res) {
     var branch = u.query.branch || 'HEAD';
     var fmt = x[2];
     var format = 'tar';
-    console.log('FORMAT: "' + fmt + '"');
     var cmdline = 'git archive --format='
     var postProcess = '';
     var contentType = 'application/x-tar';
@@ -195,7 +225,6 @@ function archive(req, res) {
         })
         str.pipe(res);
     });
-//    proc.stdout.pipe(res);
 }
 
 function guessContentType(pth) {
@@ -240,7 +269,7 @@ function guessContentType(pth) {
             case 'css' :
                 contentType = 'text/css; charset=utf8';
                 break;
-            case 'nf' :
+            case 'mf' :
                 contentType = 'text/x-manifest; charset=utf8';
                 break;
             case 'json' :
@@ -342,8 +371,7 @@ function listFiles(req, res) {
                     if (isFile) {
                         var item = {
                             type: dta[1],
-                            name : name,
-                            
+                            name: name,
 //                        owner: dta[2],
                             size: parseInt(dta[3]),
                             date: new Date(Date.parse(dta[4] + ' ' + dta[5])), // XXX timezone
