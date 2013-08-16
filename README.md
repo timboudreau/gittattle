@@ -2,18 +2,17 @@ GitTattle
 =========
 
 Implements a simple, read-only REST API on top of a directory of Git repositories,
-allowing for basic browsing.
+allowing for basic browsing, and a simple single-page web UI on top of that.
 
-Why?  Gitweb is awful, and cgit is painful to set up on Linux, excruciating
-on Solaris derivatives.  And in many cases, you just want to make a git
-repository visible, not necessarily have full pull/push access via HTTP.
-
-This will not solve the world's problems, but it's quick and dirty and does the job.
-
-It's written in node.js and can be run from the command-line.  It's not intended
-to be a full featured Git server - I'm using ``gitolite`` and am perfectly
-happy with that for pulls and pushes.  This is just to get a decent UI on the
+Why?  Gitweb is awful, and cgit is painful to set up, and I actually don't want
+a full-fledged Git server, just a read-only web-UI to use with 
+[Gitolite](https://github.com/sitaramc/gitolite). It will not solve the world's 
+problems, but it does the job.  This is just to get a decent UI on the
 web with minimum pain.
+
+It's written in node.js and can be run from the command-line.  You aim it at
+a folder full of Git repositories and go (make sure it runs as a user account 
+that can read them).  Then use the built-in, minimal web UI or roll your own.
 
 
 Configuration
@@ -45,6 +44,11 @@ Web API
 
 The API aims to be simple and intuitive.  Since this is read-only, only GET and HEAD
 requests are supported.
+
+### ``/git/index.html``
+A minimal web ui for a git server which can show lists of commits and files for
+a set of repositories which are subdirectories of the folder it was given on
+startup.
 
 ### ``/git``
 
@@ -119,3 +123,21 @@ Add the parameter ``?branch=$BRANCH_NAME`` to download the version from a partic
 
 Fetch the output of ``git diff-tree --patch-with-stat $COMMIT_HEX_ID`` - a basic
 diff and stats output for that repository.
+
+
+## Security
+
+The web API *does* call ``git`` in a shell with arguments passed from an HTTP
+request.  The usual precautions have been taken about not allowing characters
+such as backticks, redirects, pipes, etc.  I make no promises that there isn't
+some way for someone to do something nasty, but I've taken the basic 
+precautions.  If you find any issues, please let me know.
+
+The web api does not do any authentication/authorization.  It's easy enough to
+proxy it behind something that does.
+
+
+# To-Do
+
+ * Would be nice to use a router and have permalinks
+
