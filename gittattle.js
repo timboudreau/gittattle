@@ -12,7 +12,7 @@ var http = require('http'),
 
 // GITTATTLE
 // ---------
-// Implements a very straightforward
+// Implements a very straightforward minimal web api
 
 var file = 'gitattle.json';
 var gitpattern = /(.*?)\.git/;
