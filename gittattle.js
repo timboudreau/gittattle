@@ -28,6 +28,8 @@ var config = {
     failOnNoDir : true
 };
 
+// Look for a file named gittattle.json in the process working dir, and
+// if present, override config defaults with its contents
 if (fs.existsSync(file)) {
     var loaded = JSON.parse(fs.readFileSync(file, {encoding: 'utf8'}));
     for (var key in loaded) {
@@ -35,6 +37,8 @@ if (fs.existsSync(file)) {
     }
 }
 
+// Bail out early if gitdir is not set, or if failOnNoDir is true and the
+// dir does not exist
 if (!config.gitdir || (config.failOnNoDir && !fs.existsSync(config.gitdir))) {
     throw new Error("Git dir does not exist: '" + config.gitdir + "'")
 }
@@ -43,7 +47,8 @@ var listFileRex = /\/git\/[^\/`'"'&|<>]*\/get\/([^&`'"|<>]*)/;
 var downloadRex = /\/git\/([^\/`'"'&|<>]*)\.([tarzipgb2x\.]*)$/;
 
 var router = new Router();
-// Redirects
+
+// Redirects to the UI home page
 router.getAndHead("", redir);
 router.getAndHead("/", redir);
 router.getAndHead(/\/git$/, redir);
@@ -54,6 +59,7 @@ if (config.serveIndexPage) {
     router.getAndHead(/\/git\/?$/, getFile('index.html'), 'Index page');
     router.getAndHead(/\/git\/ajax-loader.gif/, getFile('ajax-loader.gif'), 'Progress animation');
 }
+// Web API
 router.getAndHead('/git/list', list, 'List repositories');
 router.getAndHead(downloadRex, archive, 'Fetch an archive of a repository');
 router.getAndHead(/\/git\/[^\/`'"'&|<>]*$/, log, 'Fetch log for one repository');
@@ -68,6 +74,7 @@ router.createSimpleServer(config.port, function onStart(err) {
     console.log('Started git server on ' + config.port + " over " + config.gitdir);
 });
 
+// Redirect requests to the site root
 function redir(req, res) {
     res.writeHead(302, {
         Location : '/git/'
@@ -76,7 +83,6 @@ function redir(req, res) {
 }
 
 // Web API calls:
-
 function getFile(file) {
     var dir = path.dirname(module.filename);
     var pth = path.join(dir, file);
@@ -137,6 +143,7 @@ function gitCommits(pth, n, cb, skip) {
         skipArg = ' --skip=' + skip + ' ';
     }
 
+    // Basically we're getting `git log` to return pseudo-JSON
     var cmd = 'git log -n' + n + ' --branches=* ' + skipArg 
             + ' --pretty=format:\'{%n^@^hash^@^:^@^%h^@^,%n^@^author^@^:^@^%an^@^,%n^@^date^@^:^@^%ad^@^,%n^@^email^@^:^@^%aE^@^,%n^@^message^@^:^@^%s^@^,%n^@^commitDate^@^:^@^%ai^@^,%n^@^age^@^:^@^%cr^@^},\'';
     var opts = {
@@ -183,6 +190,8 @@ function diff(req, res) {
         }
         var cmdline = 'git diff-tree --patch-with-stat "' + commit + '"';
         var expires = new Date();
+        // Set expiration date 10 years in the future - a commit will always
+        // match its hash
         expires.setFullYear(expires.getFullYear() + 10);
         res.writeHead(200, {'Content-Type': 'text/plain; charset=UTF-8', Expires: expires, 'Cache-Control': 'public'});
         var proc = child_process.exec(cmdline, opts);
@@ -197,6 +206,8 @@ function archive(req, res) {
     if (/(.*)\.tar/.test(repo)) {
         repo = /(.*?)\.tar/.exec(repo)[1];
     }
+    // Do a little hack to pipe it through xz or bz2, so we can
+    // support those target formats
     var dir = path.join(config.gitdir, repo + '.git');
     var branch = u.query.branch || 'HEAD';
     var fmt = x[2];
@@ -324,6 +335,8 @@ function guessContentType(pth) {
 }
 
 function getOneFile(req, res) {
+    // Use git show to list the file - we never actually unpack it to disk,
+    // just read the index
     var self = this;
     var u = url.parse(self.req.url, true);
     var portions = u.pathname.split(/\//g);
@@ -374,6 +387,8 @@ function listFiles(req, res) {
             cwd: dir,
             timeout: config.fastTimeout
         }
+        // PENDING:  This is pretty horribly inefficient, since we're archiving
+        // the entire repo in order to list it - find another way
         var cmdline = 'git archive "' + branch + '"| ' + config.tar + ' -tv';
         child_process.exec(cmdline, opts, function(err, stdout, stderr) {
             if (err)
@@ -444,15 +459,18 @@ function log(req, res) {
 }
 
 function list(req, res) {
+    // List repositories, with commit info
     if (req.method.toUpperCase() === 'HEAD') {
         res.writeHead(200, DEFAULT_HEADERS);
         return res.end();
     }
+    // Lits all subdirs of the git dir
     fs.readdir(config.gitdir, function(err, files) {
         if (err)
             return error(req, res);
 
         var data = [];
+        // Filter the file list to those ending in .git
         for (var i = 0; i < files.length; i++) {
             if (gitpattern.test(files[i])) {
                 data.push({
@@ -462,11 +480,16 @@ function list(req, res) {
                 });
             }
         }
+        if (data.length === 0) {
+            return respond(req, res, []);
+        }
 
+        // clone the data
         var moreData = copy(data);
 
         var handled = 0;
         function loadDescription() {
+            // Called iteratively - get the current item
             var item = moreData.pop();
             var descriptionFile = item ? path.join(item.location, 'description') : '';
             function done() {
@@ -478,6 +501,7 @@ function list(req, res) {
             }
 
             function almostDone() {
+                // get the most recent commit for this repo
                 gitCommits(item.location, 1, function(err, commit) {
                     if (commit) {
                         item.lastCommit = commit[0];
@@ -488,6 +512,7 @@ function list(req, res) {
                 });
             }
 
+            // load the description
             fs.exists(descriptionFile, function(exists) {
                 if (!exists) {
                     almostDone();
