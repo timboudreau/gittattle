@@ -186,7 +186,7 @@
                                         replace: true,
                                         restrict: 'A',
                                         scope: false,
-                                        link: function(scope, iElement, iAttrs, controller) {
+                                        link: function(scope, iElement, iAttrs) {
                                             var out = angular.element('<pre class="prettyprint sourcepopup"></pre>');
                                             iElement.parent().append(out);
                                             iElement.css('display', 'none');
@@ -195,9 +195,9 @@
 
                                             function url() {
                                                 if (iAttrs.path) {
-                                                    return '/git/' + iAttrs.repo + '/get/' + iAttrs.path;
+                                                    return './' + iAttrs.repo + '/get/' + iAttrs.path;
                                                 } else {
-                                                    return '/git/' + iAttrs.repo + '/' + iAttrs.source
+                                                    return './' + iAttrs.repo + '/' + iAttrs.source;
                                                 }
                                             }
 
@@ -208,6 +208,11 @@
                                                     out.css('display', 'block')
                                                     if (content === orig) {
                                                         $http.get(url()).success(function(data) {
+                                                            // XXX JSON files are coming up as [Object object] - 
+                                                            // figure out how to specify text only here instead
+                                                            if (typeof data === 'object') {
+                                                                data = JSON.stringify(data)
+                                                            }
                                                             content = data;
                                                             iElement.parent().append(out);
                                                             out.text(data);
@@ -226,7 +231,7 @@
                                 });
 
                                 function Ctrllr($scope, $http) {
-                                    $http.get('./').success(function(dta) {
+                                    $http.get('./list').success(function(dta) {
                                         if (typeof dta['forEach'] === 'function') {
                                             dta.forEach(function(repo) {
                                                 repo.expanded = false;
@@ -280,7 +285,7 @@
                                     }
 
                                     function needLoad(arr) {
-                                        if (typeof arr != 'undefined' && typeof arr != 'undefined') {
+                                        if (typeof arr !== 'undefined' && typeof arr !== 'undefined') {
                                             if (arr.length === 0)
                                                 return true;
                                             if (arr.length === 1) {
@@ -298,7 +303,7 @@
 
                                             $scope.commits = [dummyCommit];
 
-                                            $http.get('/git/' + $scope.repo.name).success(function(log) {
+                                            $http.get('./' + $scope.repo.name).success(function(log) {
                                                 log.forEach(function(cmt) {
                                                     if (typeof cmt.date === 'string') {
                                                         cmt.date = new Date(Date.parse(cmt.date));

@@ -20,30 +20,22 @@ var DEFAULT_COUNT = 30;
 
 var config = {
     gitdir: '/var/lib/gitolite/repositories',
-//    gitdir: '/tmp/git',
-    urlpath: '/git',
-    appendDotGitToRepoNames: true,
     port: 9902,
     tar: 'tar',
     fastTimeout: 1400,
     logEntriesPerPage: DEFAULT_COUNT,
     serveIndexPage: true,
+    failOnNoDir : true
 };
-
-    var fl = fs.realpathSync(file);
-    console.log('LOOK FOR ' + fl);
 
 if (fs.existsSync(file)) {
     var loaded = JSON.parse(fs.readFileSync(file, {encoding: 'utf8'}));
     for (var key in loaded) {
-        
-//        FIXME NOT READING THE RIGHT FILE
-        
         config[key] = loaded[key]
     }
 }
 
-if (!config.gitdir || !fs.existsSync(config.gitdir)) {
+if (!config.gitdir || (config.failOnNoDir && !fs.existsSync(config.gitdir))) {
     throw new Error("Git dir does not exist: '" + config.gitdir + "'")
 }
 
@@ -51,11 +43,18 @@ var listFileRex = /\/git\/[^\/`'"'&|<>]*\/get\/([^&`'"|<>]*)/;
 var downloadRex = /\/git\/([^\/`'"'&|<>]*)\.([tarzipgb2x\.]*)$/;
 
 var router = new Router();
+// Redirects
+router.getAndHead("", redir);
+router.getAndHead("/", redir);
+router.getAndHead(/\/git$/, redir);
+
+// Static content
 if (config.serveIndexPage) {
     router.getAndHead(/\/git\/index.html/, getFile('index.html'), 'Index page');
+    router.getAndHead(/\/git\/?$/, getFile('index.html'), 'Index page');
     router.getAndHead(/\/git\/ajax-loader.gif/, getFile('ajax-loader.gif'), 'Progress animation');
 }
-router.getAndHead('/git', list, 'List repositories');
+router.getAndHead('/git/list', list, 'List repositories');
 router.getAndHead(downloadRex, archive, 'Fetch an archive of a repository');
 router.getAndHead(/\/git\/[^\/`'"'&|<>]*$/, log, 'Fetch log for one repository');
 router.getAndHead(/\/git\/[^\/`'"'&|<>]*\/[abcdef1234567890]*$/, diff, 'Fetch a change set')
@@ -68,6 +67,13 @@ router.createSimpleServer(config.port, function onStart(err) {
         throw err;
     console.log('Started git server on ' + config.port + " over " + config.gitdir);
 });
+
+function redir(req, res) {
+    res.writeHead(302, {
+        Location : '/git/'
+    });
+    res.end("Redirecting to git server root");
+}
 
 // Web API calls:
 
@@ -137,7 +143,7 @@ function gitCommits(pth, n, cb, skip) {
         cwd: pth,
         timeout: config.fastTimeout
     };
-    if (config.appendDotGitToRepoNames && !gitpattern.test(pth)) {
+    if (!gitpattern.test(pth)) {
         opts.cwd += '.git';
     }
     child_process.exec(cmd, opts, function(err, stdout) {

@@ -5,6 +5,8 @@ Implements a simple, read-only REST API on top of a directory of Git repositorie
 allowing for basic browsing, and a simple single-page web UI on top of that.
 Does not require a working directory - files are served using ``git show``.
 
+The git repository subdirectory names must end with ``.git``.
+
 Why?  Gitweb is awful, Cgit is painful to set up;  and for a lot of cases,
 a full fledged push/pull-over-http server is more than you need.  It was 
 written with Gitolite](https://github.com/sitaramc/gitolite) in mind,
@@ -19,18 +21,41 @@ a folder full of Git repositories and go (make sure it runs as a user account
 that can read them).  Then use the built-in, minimal web UI or roll your own.
 
 
+Features
+--------
+The web API supports the following, returning JSON:
+
+ * List repositories
+ * List commits information for a repository, limiting the number of entries returned and the starting entry
+ * List files for a repository, optionally specifying a branch name
+ * Download an individual commit diff, specifying a repository and commit hash
+ * Download an individual file, optionally specifying a branch
+ * Download an archive of a repository, optionally specifying a branch, in one of
+   * ``tar.xz`` format
+   * ``tar.bz2`` format
+   * ``tar.gz`` format
+   * ``zip`` format
+
+The web ui provides a single-page web application for doing the above in a
+web browser.
+
+
 Configuration
 -------------
 
 It looks for a file named ``gittattle.json`` in the process` working directory.
 The following properties are relevant and shown with their defaults:
 
- * ``gitdir : /var/lib/gitolite/repositories`` - Path to the parent directory of git repos to serve
- * ``appendDotGitToRepoNames : true`` - Look for ``.git`` as the suffix
+ * ``gitdir : /var/lib/gitolite/repositories`` - Path to the parent directory 
+of git repos to serve
  * ``port : 9902`` - The port to run the HTTP server on
- * ``tar : tar`` - The name of the tar command, for platforms that call GNU tar ``gtar``
- * ``logEntriesPerPage : 30`` - The number of log entries to return if log is called with no ``count`` URL parameter
+ * ``tar : tar`` - The name of the tar command, for platforms that call GNU 
+tar ``gtar``
+ * ``logEntriesPerPage : 30`` - The number of log entries to return if log is 
+called with no ``count`` URL parameter
  * ``serveIndexPage : true`` - Should the built-in HTML client be used
+ * ``failOnNoDir : true`` - Exit early if the git repositories directory does 
+not exist when the program is started
 
 
 Web UI
@@ -49,12 +74,14 @@ Web API
 The API aims to be simple and intuitive.  Since this is read-only, only GET and HEAD
 requests are supported.
 
-### ``/git/index.html``
+
+### ``/git/index.html``, ``/git/``
 A minimal web ui for a git server which can show lists of commits and files for
 a set of repositories which are subdirectories of the folder it was given on
 startup.
 
-### ``/git``
+
+### ``/git/list``
 
 Lists the respositories being served as a JSON array, with some info about the
 most recent commit if available
