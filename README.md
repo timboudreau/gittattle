@@ -9,12 +9,12 @@ The git repository subdirectory names must end with ``.git``.
 
 Why?  Gitweb is awful, Cgit is painful to set up;  and for a lot of cases,
 a full fledged push/pull-over-http server is more than you need.  It was 
-written with Gitolite](https://github.com/sitaramc/gitolite) in mind,
+written with [Gitolite](https://github.com/sitaramc/gitolite) in mind,
 but it will work with any system that contains a folder of Git repositories. 
 
 The idea is to painlessly 
-get provide a reasonable UI on the web with minimum pain, and provide a REST
-api for widget-like use-cases.
+provide a reasonable read-only UI on the web with minimum pain, and provide a REST
+api for widgets showing recent commits and such.
 
 It's written in node.js and can be run from the command-line.  You aim it at
 a folder full of Git repositories and go (make sure it runs as a user account 
@@ -171,4 +171,4 @@ proxy it behind something that does.
 # To-Do
 
  * Would be nice to use a router and have permalinks
-
+ * Appending ``.git`` should be optional but is actually currently required - probably some tweaks needed
