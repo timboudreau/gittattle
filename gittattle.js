@@ -14,7 +14,7 @@ var http = require('http'),
 // ---------
 // Implements a very straightforward minimal web api
 
-var file = 'gitattle.json';
+var file = 'gittattle.json';
 var gitpattern = /(.*?)\.git/;
 var DEFAULT_COUNT = 30;
 
@@ -28,17 +28,23 @@ var config = {
     fastTimeout: 1400,
     logEntriesPerPage: DEFAULT_COUNT,
     serveIndexPage: true,
-    html: {
-        title: 'Git Server',
-        headingText: 'Git Server'
-    }
 };
+
+    var fl = fs.realpathSync(file);
+    console.log('LOOK FOR ' + fl);
 
 if (fs.existsSync(file)) {
     var loaded = JSON.parse(fs.readFileSync(file, {encoding: 'utf8'}));
     for (var key in loaded) {
+        
+//        FIXME NOT READING THE RIGHT FILE
+        
         config[key] = loaded[key]
     }
+}
+
+if (!config.gitdir || !fs.existsSync(config.gitdir)) {
+    throw new Error("Git dir does not exist: '" + config.gitdir + "'")
 }
 
 var listFileRex = /\/git\/[^\/`'"'&|<>]*\/get\/([^&`'"|<>]*)/;
@@ -55,6 +61,15 @@ router.getAndHead(/\/git\/[^\/`'"'&|<>]*$/, log, 'Fetch log for one repository')
 router.getAndHead(/\/git\/[^\/`'"'&|<>]*\/[abcdef1234567890]*$/, diff, 'Fetch a change set')
 router.getAndHead(/\/git\/[^\/`'"'&|<>]*\/list$/, listFiles, 'List files');
 router.getAndHead(listFileRex, getOneFile, 'List files');
+
+// Start the server
+router.createSimpleServer(config.port, function onStart(err) {
+    if (err)
+        throw err;
+    console.log('Started git server on ' + config.port + " over " + config.gitdir);
+});
+
+// Web API calls:
 
 function getFile(file) {
     var dir = path.dirname(module.filename);
@@ -116,7 +131,8 @@ function gitCommits(pth, n, cb, skip) {
         skipArg = ' --skip=' + skip + ' ';
     }
 
-    var cmd = 'git log -n' + n + ' --branches=* ' + skipArg + ' --pretty=format:\'{%n^@^hash^@^:^@^%h^@^,%n^@^author^@^:^@^%an^@^,%n^@^date^@^:^@^%ad^@^,%n^@^email^@^:^@^%aE^@^,%n^@^message^@^:^@^%s^@^,%n^@^commitDate^@^:^@^%ai^@^,%n^@^age^@^:^@^%cr^@^},\'';
+    var cmd = 'git log -n' + n + ' --branches=* ' + skipArg 
+            + ' --pretty=format:\'{%n^@^hash^@^:^@^%h^@^,%n^@^author^@^:^@^%an^@^,%n^@^date^@^:^@^%ad^@^,%n^@^email^@^:^@^%aE^@^,%n^@^message^@^:^@^%s^@^,%n^@^commitDate^@^:^@^%ai^@^,%n^@^age^@^:^@^%cr^@^},\'';
     var opts = {
         cwd: pth,
         timeout: config.fastTimeout
@@ -211,10 +227,10 @@ function archive(req, res) {
         encoding: 'binary'
     }
     // XXX for some reason, when piping the process output directly to the
-    // http response, the result ends up truncated
+    // http response, the result ends up truncated.  For now use a temporary
+    // file and serve that
     var tempfile = '/tmp/' + new Date().getTime() + '_' + repo + '-' + Math.random() + '.' + format;
     cmdline += ' > ' + tempfile;
-    console.log('RUN ' + cmdline);
     res.writeHead(200, {'Content-Type': contentType});
     var proc = child_process.exec(cmdline, opts, function(err, stdout) {
         if (err)
@@ -488,9 +504,3 @@ function list(req, res) {
         loadDescription();
     });
 }
-
-router.createSimpleServer(config.port, function onStart(err) {
-    if (err)
-        throw err;
-    console.log('Started git server on ' + config.port + " over " + config.gitdir);
-});

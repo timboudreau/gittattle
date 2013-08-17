@@ -59,7 +59,7 @@
                 margin-left: 1em;
                 margin-right: 1em;
             }
-            
+
             .errorBox {
                 position: fixed;
                 top: 5em;
@@ -77,7 +77,7 @@
             pre.prettyprint {
                 border: none;
             }
-            
+
             .ng-cloak {
                 display: none;
             }
@@ -85,18 +85,18 @@
                 text-align: center;
                 width: 100%;
             }
-            
+
         </style>
     </head>
     <body ng-app='gittattle'>
         <div class='errorBox ng-cloak' ng-show='error'>
-            <div class='warning'><b>Error</b>&nbsp;&nbsp;<a href='#' ng-click='error=null' class='pull-right'>x</a>
+            <div class='warning'><b>Error</b>&nbsp;&nbsp;<a href='#' ng-click='error = null' class='pull-right'>x</a>
                 <br/>
                 This is a warning</div>
         </div>
         <div class='container-fluid' ng-controller='Ctrllr'>
             <div class='row-fluid'><h1 class='span12'>Git Server</h1></div>
-            <div class='ng-uncloak' id='loading'>...loading...
+            <div class='ng-uncloak' id='loading' ng-show="!initialized">...loading...
                 <br/>
                 <img src="ajax-loader.gif" alt='Loading' width='32' height='32'/>
             </div>
@@ -225,16 +225,20 @@
                                     };
                                 });
 
-                                $('#loading').hide();
-
                                 function Ctrllr($scope, $http) {
                                     $http.get('./').success(function(dta) {
-                                        dta.forEach(function(repo) {
-                                            repo.expanded = false;
-                                        })
-                                        $scope.repos = dta;
-                                    }).error(function(err, status) {
+                                        if (typeof dta['forEach'] === 'function') {
+                                            dta.forEach(function(repo) {
+                                                repo.expanded = false;
+                                            })
+                                            $scope.repos = dta;
+                                        } else {
+                                            $scope.error = dta;
+                                        }
+                                        $scope.initialized=true;
+                                }).error(function(err, status) {
                                         $scope.error = err || status;
+                                        $scope.initialized=true;
                                     });
                                 }
 
@@ -274,10 +278,11 @@
                                         $scope.commitTabActive = true;
                                         loadCommits();
                                     }
-                                    
+
                                     function needLoad(arr) {
                                         if (typeof arr != 'undefined' && typeof arr != 'undefined') {
-                                            if (arr.length === 0) return true;
+                                            if (arr.length === 0)
+                                                return true;
                                             if (arr.length === 1) {
                                                 return arr[0] === dummyCommit;
                                             }
