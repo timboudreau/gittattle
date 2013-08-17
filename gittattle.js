@@ -193,7 +193,11 @@ function diff(req, res) {
         // Set expiration date 10 years in the future - a commit will always
         // match its hash
         expires.setFullYear(expires.getFullYear() + 10);
-        res.writeHead(200, {'Content-Type': 'text/plain; charset=UTF-8', Expires: expires, 'Cache-Control': 'public'});
+        res.writeHead(200, {
+            'Content-Type': 'text/plain; charset=UTF-8', 
+            Expires: expires, 
+            'Cache-Control': 'public'
+        });
         var proc = child_process.exec(cmdline, opts);
         proc.stdout.pipe(res);
     });
@@ -325,9 +329,6 @@ function guessContentType(pth) {
                 break;
             case 'gz' :
                 contentType = 'application/x-gzip';
-                break;
-            case 'rb' :
-                contentType = 'text/ruby; charset=utf8';
                 break;
         }
     }
