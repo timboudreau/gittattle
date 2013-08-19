@@ -168,7 +168,8 @@ The web api does not do any authentication/authorization.  It's easy enough to
 proxy it behind something that does.
 
 
-# To-Do
+# To-Do / Issues
 
  * Would be nice to use a router and have permalinks
  * Appending ``.git`` should be optional but is actually currently required - probably some tweaks needed
+ * ``git show`` on binary files such as images appears to be prepending a few bytes to output, corrupting "raw" links for those

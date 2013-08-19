@@ -366,9 +366,10 @@ function getOneFile(req, res) {
                 contentType = guessContentType(pth);
             }
         }
-        var cmdline = 'git show "' + branch + ':' + pth + '"';
+        var cmdline = 'git show --format=raw "' + branch + ':' + pth + '"';
         var proc = child_process.exec(cmdline, opts);
         self.res.writeHead(200, {'Content-Type': contentType});
+        proc.stdout.setEncoding('binary');
         proc.stdout.pipe(res);
     });
 }
