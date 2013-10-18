@@ -84,9 +84,25 @@ pre.prettyprint {
 .ng-uncloak {
     text-align: center;
     width: 100%;
-}</style>
-    </head>
+}
+.table-striped>tbody>tr:nth-child(odd)>th  {
+    background-color: rgba(20, 20, 20, 0.05);
+}
+.table-striped>tbody>tr:nth-child(odd)>td  {
+    background-color: rgba(20, 20, 20, 0.05);
+}
+.well {
+    background-color: rgba(255, 255, 255, 0.25);
+}
+.main {
+    margin: 12px;
+}
+        </style>
+<link href="//timboudreau.com/blog/blog-1013.css" rel="stylesheet">
+<link href='//fonts.googleapis.com/css?family=Roboto|Signika|Voltaire|Anonymous|Source+Code+Pro' rel='stylesheet' type='text/css'>
+</head>
     <body ng-app='gittattle'>
+        <div class="main">
         <div class='errorBox ng-cloak' ng-show='error'>
             <div class='warning'><b>Error</b>&nbsp;&nbsp;<a href='#' ng-click='error = null' class='pull-right'>x</a>
                 <br/>
@@ -172,6 +188,7 @@ href='./{{repo.name}}.zip'>zip</a></td>
                     </table>
                 </div>
             </div>
+        </div>
         </div>
 
         <script src="//codeorigin.jquery.com/jquery-2.0.3.min.js"></script>

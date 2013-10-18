@@ -2,7 +2,7 @@
   "name" : "gittattle",
   "description" : "A REST api and minimal web UI for Git",
   "version" : "0.0.1",
-  "main" : "./gittattle.js",
+  "main" : "gittattle.js",
   "author" : {
     "name" : "Tim Boudreau",
     "email" : "tim@timboudreau.com"
@@ -18,6 +18,5 @@
   "bugs" : {
     "web" : "http://github.com/timboudreau/gittattle/issues"
   },
-  "dependencies" : {
-  }
+  "dependencies" : { }
 }
