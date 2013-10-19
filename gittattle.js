@@ -25,7 +25,8 @@ var config = {
     fastTimeout: 1400,
     logEntriesPerPage: DEFAULT_COUNT,
     serveIndexPage: true,
-    failOnNoDir : true
+    failOnNoDir : true,
+    blacklist : ['gitolite-admin.git']
 };
 
 // Look for a file named gittattle.json in the process working dir, and
@@ -471,10 +472,15 @@ function list(req, res) {
         if (err)
             return error(req, res);
 
+        function isBlacklisted(dir) {
+            return config.blacklist && config.blacklist.length > 0 ? 
+                config.blacklist.indexOf(dir) >= 0 : false;
+        }
+
         var data = [];
         // Filter the file list to those ending in .git
         for (var i = 0; i < files.length; i++) {
-            if (gitpattern.test(files[i])) {
+            if (!isBlacklisted(files[i]) && gitpattern.test(files[i])) {
                 data.push({
                     location: path.join(config.gitdir, files[i]),
                     dir: files[i],
