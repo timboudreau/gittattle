@@ -27,7 +27,7 @@ var config = {
     logEntriesPerPage: DEFAULT_COUNT,
     serveIndexPage: true,
     failOnNoDir : true,
-    blacklist : ['gitolite-admin.git']
+    blacklist : []
 };
 
 // Look for a file named gittattle.json in the process working dir, and
@@ -38,6 +38,7 @@ if (fs.existsSync(filepath)) {
         config[key] = loaded[key]
     }
 }
+config.blacklist.unshift('gitolite-admin.git');
 
 // Bail out early if gitdir is not set, or if failOnNoDir is true and the
 // dir does not exist
