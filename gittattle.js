@@ -26,8 +26,8 @@ var config = {
     fastTimeout: 1400,
     logEntriesPerPage: DEFAULT_COUNT,
     serveIndexPage: true,
-    failOnNoDir : true,
-    blacklist : []
+    failOnNoDir: true,
+    blacklist: []
 };
 
 // Look for a file named gittattle.json in the process working dir, and
@@ -80,7 +80,7 @@ router.createSimpleServer(config.port, function onStart(err) {
 // Redirect requests to the site root
 function redir(req, res) {
     res.writeHead(302, {
-        Location : '/git/'
+        Location: '/git/'
     });
     res.end("Redirecting to git server root");
 }
@@ -147,7 +147,7 @@ function gitCommits(pth, n, cb, skip) {
     }
 
     // Basically we're getting `git log` to return pseudo-JSON
-    var cmd = 'git log -n' + n + ' --branches=* ' + skipArg 
+    var cmd = 'git log -n' + n + ' --branches=* ' + skipArg
             + ' --pretty=format:\'{%n^@^hash^@^:^@^%h^@^,%n^@^author^@^:^@^%an^@^,%n^@^date^@^:^@^%ad^@^,%n^@^email^@^:^@^%aE^@^,%n^@^message^@^:^@^%s^@^,%n^@^commitDate^@^:^@^%ai^@^,%n^@^age^@^:^@^%cr^@^},\'';
     var opts = {
         cwd: pth,
@@ -197,8 +197,8 @@ function diff(req, res) {
         // match its hash
         expires.setFullYear(expires.getFullYear() + 10);
         res.writeHead(200, {
-            'Content-Type': 'text/plain; charset=UTF-8', 
-            Expires: expires, 
+            'Content-Type': 'text/plain; charset=UTF-8',
+            Expires: expires,
             'Cache-Control': 'public'
         });
         var proc = child_process.exec(cmdline, opts);
@@ -463,6 +463,31 @@ function log(req, res) {
     });
 }
 
+function getRepoRecursively(dir, filename) {
+    var data = [];
+    function isBlacklisted(dir) {
+        return config.blacklist && config.blacklist.length > 0 ?
+                config.blacklist.indexOf(dir) >= 0 : false;
+    }
+    if (!isBlacklisted(filename)) {
+        var fullpath = path.resolve(dir, filename);
+        if (gitpattern.test(filename)) {
+            var repodir = fullpath.replace(config.gitdir + '/', '');
+            return [{
+                location: fullpath,
+                dir: repodir,
+                name: gitpattern.exec(repodir)[1]
+            }];
+        } else if (fs.statSync(fullpath).isDirectory()) {
+            var files = fs.readdirSync(fullpath);
+            for (var i = 0; i < files.length; i++) {
+                data = data.concat(getRepoRecursively(fullpath, files[i]));
+            }
+        }
+    }
+    return data;
+}
+
 function list(req, res) {
     // List repositories, with commit info
     if (req.method.toUpperCase() === 'HEAD') {
@@ -472,24 +497,14 @@ function list(req, res) {
     // Lits all subdirs of the git dir
     fs.readdir(config.gitdir, function(err, files) {
         if (err)
-            return error(req, res);
-
-        function isBlacklisted(dir) {
-            return config.blacklist && config.blacklist.length > 0 ? 
-                config.blacklist.indexOf(dir) >= 0 : false;
-        }
+            return error(req, res);        
 
         var data = [];
         // Filter the file list to those ending in .git
         for (var i = 0; i < files.length; i++) {
-            if (!isBlacklisted(files[i]) && gitpattern.test(files[i])) {
-                data.push({
-                    location: path.join(config.gitdir, files[i]),
-                    dir: files[i],
-                    name: gitpattern.exec(files[i])[1]
-                });
-            }
+            data = data.concat(getRepoRecursively(config.gitdir, files[i]));
         }
+
         if (data.length === 0) {
             return respond(req, res, []);
         }
