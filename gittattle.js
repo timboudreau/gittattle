@@ -15,6 +15,7 @@ var http = require('http'),
 // Implements a very straightforward minimal web api
 
 var file = 'gittattle.json';
+var filepath = path.resolve(__dirname, file);
 var gitpattern = /(.*?)\.git/;
 var DEFAULT_COUNT = 30;
 
@@ -31,8 +32,8 @@ var config = {
 
 // Look for a file named gittattle.json in the process working dir, and
 // if present, override config defaults with its contents
-if (fs.existsSync(file)) {
-    var loaded = JSON.parse(fs.readFileSync(file, {encoding: 'utf8'}));
+if (fs.existsSync(filepath)) {
+    var loaded = JSON.parse(fs.readFileSync(filepath, {encoding: 'utf8'}));
     for (var key in loaded) {
         config[key] = loaded[key]
     }
