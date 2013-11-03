@@ -150,7 +150,7 @@ pre.prettyprint {
                                                                 <td><button class="btn btn-primary pull-right" ng-click="contentVisible = false">Close</button></td>
                                                             </tr>
                                                         </table>
-                                                        <pre class="sourcepopup prettyprint" source="{{commit.hash}}" repo="{{repo.name}}">...loading...</pre>
+                                                        <pre class="sourcepopup prettyprint" source="{{commit.hash}}" repo="{{repo.id}}">...loading...</pre>
                                                     </div>
                                                 </div>
                                                 <!--<pre ng-show='commit.content && commit.contentVisible' class='prettyprint'>{{commit.content}}</pre>-->
@@ -164,7 +164,7 @@ pre.prettyprint {
                                             <td>{{file.type}}</td>
                                             <th ng-click='contentVisible = !contentVisible'>{{file.path}}</th>
                                             <td>{{file.length}}</td>
-                                            <td><a href='./{{repo.name}}/get/{{file.path}}?raw=true' target='dl'>Raw</a></td>
+                                            <td><a href='./{{repo.id}}/get/{{file.path}}?raw=true' target='dl'>Raw</a></td>
                                             <td ng-show="contentVisible">
                                                 <div class="ng-cloak sourcefade" ng-click="contentVisible = false">
                                                     <div class="sourcehead" ng-click="contentVisible = true">
@@ -174,7 +174,7 @@ pre.prettyprint {
                                                                 <td><button class="btn btn-primary pull-right" ng-click="contentVisible = false">Close</button></td>
                                                             </tr>
                                                         </table>
-                                                        <pre ng-show='contentVisible && files' class="sourcepopup prettyprint" source="true" path="{{file.path}}" repo="{{repo.name}}">...loading...</pre>
+                                                        <pre ng-show='contentVisible && files' class="sourcepopup prettyprint" source="true" path="{{file.path}}" repo="{{repo.id}}">...loading...</pre>
                                                     </div>
                                                 </div>
                                             </td>
@@ -182,8 +182,8 @@ pre.prettyprint {
                                     </tbody>
                                 </table>
                             </td>
-                            <td ><a href='./{{repo.name}}.tar.gz'>tar.gz</a> &middot; <a href='./{{repo.name}}.tar.bz2'>tar.bz2</a> &middot; <a 
-href='./{{repo.name}}.zip'>zip</a></td>
+                            <td ><a href='./{{repo.id}}.tar.gz'>tar.gz</a> &middot; <a href='./{{repo.id}}.tar.bz2'>tar.bz2</a> &middot; <a
+href='./{{repo.id}}.zip'>zip</a></td>
                         </tr>
                     </table>
                 </div>
@@ -319,7 +319,7 @@ function FilesAndCommits($scope, $http) {
 
             $scope.commits = [dummyCommit];
 
-            $http.get('./' + $scope.repo.name).success(function(log) {
+            $http.get('./' + $scope.repo.id).success(function(log) {
                 log.forEach(function(cmt) {
                     if (typeof cmt.date === 'string') {
                         cmt.date = new Date(Date.parse(cmt.date));
@@ -335,7 +335,7 @@ function FilesAndCommits($scope, $http) {
     function loadFiles() {
         if (needLoad($scope.files)) {
             $scope.error = null;
-            $http.get('./' + $scope.repo.name + '/list').success(function(files) {
+            $http.get('./' + $scope.repo.id + '/list').success(function(files) {
                 $scope.files = files;
             }).error(function(err, status) {
                 $scope.error = err || status;
