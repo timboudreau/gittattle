@@ -470,47 +470,68 @@ function log(req, res) {
     });
 }
 
-function getRepoRecursively(dir, filename) {
-    var data = [];
-    function isBlacklisted(dir) {
-        return config.blacklist && config.blacklist.length > 0 ?
-                config.blacklist.indexOf(dir) >= 0 : false;
-    }
-    if (!isBlacklisted(filename)) {
-        var fullpath = path.resolve(dir, filename);
-        if (gitpattern.test(filename)) {
-            return [deepRepoInst.object(fullpath)];
-        } else if (fs.statSync(fullpath).isDirectory()) {
-            var files = fs.readdirSync(fullpath);
-            for (var i = 0; i < files.length; i++) {
-                data = data.concat(getRepoRecursively(fullpath, files[i]));
-            }
-        }
-    }
-    return data;
-}
-
 function list(req, res) {
     // List repositories, with commit info
     if (req.method.toUpperCase() === 'HEAD') {
         res.writeHead(200, DEFAULT_HEADERS);
         return res.end();
     }
-    // Lits all subdirs of the git dir
-    fs.readdir(config.gitdir, function(err, files) {
+    
+    function isBlacklisted(dir) {
+        return config.blacklist && config.blacklist.length > 0 ?
+                config.blacklist.indexOf(dir) >= 0 : false;
+    }
+    
+    function sortrepos(a, b) {
+        return a.name <= b.name ? -1 : 1;
+    }
+    
+    function findrepos(dir, callback) {
+        var repos = [];
+        fs.readdir(dir, function(err, files) {
+            if (err)
+                return callback(err);
+
+            var pending = files.length;
+
+            if (!pending)
+                return callback(null, repos);
+
+            files.forEach(function(file) {
+                if (!isBlacklisted(file)) {
+                    var fullpath = path.join(dir, file);
+                    fs.stat(fullpath, function(err, stat) {
+                        if (gitpattern.test(file)) {
+                            repos.push(deepRepoInst.object(fullpath));
+                            if (!--pending)
+                                callback(null, repos);
+                        } else if (stat && stat.isDirectory()) {
+                            findrepos(fullpath, function(err, res) {
+                                repos = repos.concat(res);
+                                if (!--pending)
+                                    callback(null, repos);
+                            });
+                        }
+                    });
+                } else {
+                    --pending;
+                }
+            });
+        });
+    }
+    
+    // List all subdirs of the git dir
+    findrepos(config.gitdir, function(err, data) {
         if (err)
             return error(req, res);        
-
-        var data = [];
-        // Filter the file list to those ending in .git
-        for (var i = 0; i < files.length; i++) {
-            data = data.concat(getRepoRecursively(config.gitdir, files[i]));
-        }
 
         if (data.length === 0) {
             return respond(req, res, []);
         }
 
+        // sort data in alphabetically ascendant order 
+        data.sort(sortrepos);
+        
         // clone the data
         var moreData = copy(data);
 
