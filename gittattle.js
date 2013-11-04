@@ -9,6 +9,7 @@ var http = require('http'),
         respond = require('./serverUtils').respond,
         DEFAULT_HEADERS = require('./serverUtils').DEFAULT_HEADERS,
         Router = require('./router');
+        DeepRepo = require('./DeepRepo');
 
 // GITTATTLE
 // ---------
@@ -26,8 +27,8 @@ var config = {
     fastTimeout: 1400,
     logEntriesPerPage: DEFAULT_COUNT,
     serveIndexPage: true,
-    failOnNoDir : true,
-    blacklist : []
+    failOnNoDir: true,
+    blacklist: []
 };
 
 // Look for a file named gittattle.json in the process working dir, and
@@ -45,6 +46,8 @@ config.blacklist.unshift('gitolite-admin.git');
 if (!config.gitdir || (config.failOnNoDir && !fs.existsSync(config.gitdir))) {
     throw new Error("Git dir does not exist: '" + config.gitdir + "'")
 }
+
+var deepRepoInst = DeepRepo.create(config.gitdir, gitpattern);
 
 var listFileRex = /\/git\/[^\/`'"'&|<>]*\/get\/([^&`'"|<>]*)/;
 var downloadRex = /\/git\/([^\/`'"'&|<>]*)\.([tarzipgb2x\.]*)$/;
@@ -80,7 +83,7 @@ router.createSimpleServer(config.port, function onStart(err) {
 // Redirect requests to the site root
 function redir(req, res) {
     res.writeHead(302, {
-        Location : '/git/'
+        Location: '/git/'
     });
     res.end("Redirecting to git server root");
 }
@@ -147,7 +150,7 @@ function gitCommits(pth, n, cb, skip) {
     }
 
     // Basically we're getting `git log` to return pseudo-JSON
-    var cmd = 'git log -n' + n + ' --branches=* ' + skipArg 
+    var cmd = 'git log -n' + n + ' --branches=* ' + skipArg
             + ' --pretty=format:\'{%n^@^hash^@^:^@^%h^@^,%n^@^author^@^:^@^%an^@^,%n^@^date^@^:^@^%ad^@^,%n^@^email^@^:^@^%aE^@^,%n^@^message^@^:^@^%s^@^,%n^@^commitDate^@^:^@^%ai^@^,%n^@^age^@^:^@^%cr^@^},\'';
     var opts = {
         cwd: pth,
@@ -181,12 +184,12 @@ function gitCommits(pth, n, cb, skip) {
 function diff(req, res) {
     var u = url.parse(req.url, true);
     var portions = u.pathname.split(/\//g);
-    var repo = portions[portions.length - 2] + '.git';
+    var repo = deepRepoInst.object(portions[portions.length - 2]);
     var commit = portions[portions.length - 1];
-    var dir = path.join(config.gitdir, repo);
+    var dir = repo.location;
     fs.exists(dir, function(exists) {
         if (!exists)
-            return error(req, res, 'No such repository ' + repo + '\n', 404);
+            return error(req, res, 'No such repository ' + repo.name + '\n', 404);
         var opts = {
             cwd: dir,
             timeout: config.fastTimeout
@@ -197,8 +200,8 @@ function diff(req, res) {
         // match its hash
         expires.setFullYear(expires.getFullYear() + 10);
         res.writeHead(200, {
-            'Content-Type': 'text/plain; charset=UTF-8', 
-            Expires: expires, 
+            'Content-Type': 'text/plain; charset=UTF-8',
+            Expires: expires,
             'Cache-Control': 'public'
         });
         var proc = child_process.exec(cmdline, opts);
@@ -215,7 +218,8 @@ function archive(req, res) {
     }
     // Do a little hack to pipe it through xz or bz2, so we can
     // support those target formats
-    var dir = path.join(config.gitdir, repo + '.git');
+    var orepo = deepRepoInst.object(repo);
+    var dir = orepo.location;
     var branch = u.query.branch || 'HEAD';
     var fmt = x[2];
     var format = 'tar';
@@ -255,7 +259,10 @@ function archive(req, res) {
     // file and serve that
     var tempfile = '/tmp/' + new Date().getTime() + '_' + repo + '-' + Math.random() + '.' + format;
     cmdline += ' > ' + tempfile;
-    res.writeHead(200, {'Content-Type': contentType});
+    res.writeHead(200, {
+        'Content-Type': contentType,
+        'Content-Disposition': 'inline;filename=' + orepo.archive + '.' + format
+    });
     var proc = child_process.exec(cmdline, opts, function(err, stdout) {
         if (err)
             console.log(err);
@@ -344,8 +351,8 @@ function getOneFile(req, res) {
     var self = this;
     var u = url.parse(self.req.url, true);
     var portions = u.pathname.split(/\//g);
-    var repo = portions[2] + '.git';
-    var dir = path.join(config.gitdir, repo);
+    var repo = deepRepoInst.object(portions[2]);
+    var dir = repo.location
     var pth = "";
     var raw = u.query.raw;
     var branch = u.query.branch || 'HEAD';
@@ -357,7 +364,7 @@ function getOneFile(req, res) {
     }
     fs.exists(dir, function(exists) {
         if (!exists)
-            return error(req, res, 'No such repository ' + repo + '\n', 404);
+            return error(req, res, 'No such repository ' + repo.name + '\n', 404);
         var opts = {
             cwd: dir,
             timeout: config.fastTimeout
@@ -381,13 +388,13 @@ function listFiles(req, res) {
     var self = this;
     var u = url.parse(self.req.url, true);
     var portions = u.pathname.split(/\//g);
-    var repo = portions[portions.length - 2] + '.git';
-    var dir = path.join(config.gitdir, repo);
+    var repo = deepRepoInst.object(portions[portions.length - 2]);
+    var dir = repo.location;
     var branch = u.query.branch || 'master'
     var rex = /([dwrxs-]{10})\s+(\S+)\s+(\d+)\s+([\d-]+)\s+([\d:-]+)\s+(.*)$/gm
     fs.exists(dir, function(exists) {
         if (!exists)
-            return error(req, res, 'No such repository ' + repo + '\n', 404);
+            return error(req, res, 'No such repository ' + repo.name + '\n', 404);
         var opts = {
             cwd: dir,
             timeout: config.fastTimeout
@@ -436,8 +443,8 @@ function log(req, res) {
     var self = this;
     var u = url.parse(self.req.url, true);
     var portions = u.pathname.split(/\//g);
-    var repo = portions[portions.length - 1] + '.git';
-    var dir = path.join(config.gitdir, repo);
+    var repo = deepRepoInst.object(portions[portions.length - 1]);
+    var dir = repo.location;
     fs.exists(dir, function(exists) {
         var skip = null;
         var count = config.logEntriesPerPage;
@@ -454,7 +461,7 @@ function log(req, res) {
             }
         }
         if (!exists)
-            return error(req, res, 'No such repository ' + repo + '\n', 404);
+            return error(req, res, 'No such repository ' + repo.name + '\n', 404);
         gitCommits(dir, count, function(err, commits) {
             if (err)
                 return error(req, res, err);
@@ -469,31 +476,62 @@ function list(req, res) {
         res.writeHead(200, DEFAULT_HEADERS);
         return res.end();
     }
-    // Lits all subdirs of the git dir
-    fs.readdir(config.gitdir, function(err, files) {
-        if (err)
-            return error(req, res);
-
-        function isBlacklisted(dir) {
-            return config.blacklist && config.blacklist.length > 0 ? 
+    
+    function isBlacklisted(dir) {
+        return config.blacklist && config.blacklist.length > 0 ?
                 config.blacklist.indexOf(dir) >= 0 : false;
-        }
+    }
+    
+    function sortrepos(a, b) {
+        return a.name <= b.name ? -1 : 1;
+    }
+    
+    function findrepos(dir, callback) {
+        var repos = [];
+        fs.readdir(dir, function(err, files) {
+            if (err)
+                return callback(err);
 
-        var data = [];
-        // Filter the file list to those ending in .git
-        for (var i = 0; i < files.length; i++) {
-            if (!isBlacklisted(files[i]) && gitpattern.test(files[i])) {
-                data.push({
-                    location: path.join(config.gitdir, files[i]),
-                    dir: files[i],
-                    name: gitpattern.exec(files[i])[1]
-                });
-            }
-        }
+            var pending = files.length;
+
+            if (!pending)
+                return callback(null, repos);
+
+            files.forEach(function(file) {
+                if (!isBlacklisted(file)) {
+                    var fullpath = path.join(dir, file);
+                    fs.stat(fullpath, function(err, stat) {
+                        if (gitpattern.test(file)) {
+                            repos.push(deepRepoInst.object(fullpath));
+                            if (!--pending)
+                                callback(null, repos);
+                        } else if (stat && stat.isDirectory()) {
+                            findrepos(fullpath, function(err, res) {
+                                repos = repos.concat(res);
+                                if (!--pending)
+                                    callback(null, repos);
+                            });
+                        }
+                    });
+                } else {
+                    --pending;
+                }
+            });
+        });
+    }
+    
+    // List all subdirs of the git dir
+    findrepos(config.gitdir, function(err, data) {
+        if (err)
+            return error(req, res);        
+
         if (data.length === 0) {
             return respond(req, res, []);
         }
 
+        // sort data in alphabetically ascendant order 
+        data.sort(sortrepos);
+        
         // clone the data
         var moreData = copy(data);
 
