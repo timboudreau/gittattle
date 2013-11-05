@@ -104,7 +104,7 @@ pre.prettyprint {
     <body ng-app='gittattle'>
         <div class="main">
         <div class='errorBox ng-cloak' ng-show='error'>
-            <div class='warning'><b>Error</b>&nbsp;&nbsp;<a href='#' ng-click='error = null' class='pull-right'>x</a>
+            <div class='warning'><b>Error</b>&nbsp;&nbsp;<a href='#' ng-click='error = null' class='pull-right' stop-event='click'>x</a>
                 <br/>
                 This is a warning</div>
         </div>
@@ -118,17 +118,17 @@ pre.prettyprint {
                 <div class='span12'>
                     <table class='ng-cloak table table-striped' ng-controller='FilesAndCommits'>
                         <tr ng-repeat='repo in repos'>
-                            <th class='span1' ng-click='toggle(repo)'>{{repo.name}}</th>
-                            <th class='span4' ng-click='toggle(repo)'>{{repo.description}}</th>
-                            <td class='span1' ng-click='toggle(repo)' ng-show='!repo.expanded'>{{repo.lastCommit.author}}</td>
-                            <td class='span3' ng-click='toggle(repo)' ng-show='!repo.expanded'>{{repo.lastCommit.message}}</td>
+                            <th class='span1' ng-click='toggle(repo)' stop-event='click'>{{repo.name}}</th>
+                            <th class='span4' ng-click='toggle(repo)' stop-event='click'>{{repo.description}}</th>
+                            <td class='span1' ng-click='toggle(repo)' ng-show='!repo.expanded' stop-event='click'>{{repo.lastCommit.author}}</td>
+                            <td class='span3' ng-click='toggle(repo)' ng-show='!repo.expanded' stop-event='click'>{{repo.lastCommit.message}}</td>
                             <td ng-show='!repo.expanded'>{{repo.lastCommit.age}}</td>
                             <td ng-show='repo.expanded' colspan='3' class='well'>
                                 <ul class='nav nav-tabs'>
-                                    <li ng-class="{ 'active' : commitTabActive}" ng-click='commitsSelected()'>
+                                    <li ng-class="{ 'active' : commitTabActive}" ng-click='commitsSelected()' stop-event='click'>
                                         <a href='#'>Commits <span class="badge" ng-show='commits && commits.length > 1'>{{commits.length}}</span></a>
                                     </li>
-                                    <li ng-class="{ 'active' : !commitTabActive}" ng-click='filesSelected()'>
+                                    <li ng-class="{ 'active' : !commitTabActive}" ng-click='filesSelected()' stop-event='click'>
                                         <a href='#'>Files <span class="badge" ng-show='files && files.length > 1'>{{files.length}}</span></a>
                                     </li>
                                 </ul>
@@ -137,17 +137,17 @@ pre.prettyprint {
                                     <tbody>
                                         <tr ng-repeat='commit in commits'>
                                             <th>{{commit.author}}</th>
-                                            <!--<td ng-click='showDiff(repo, commit)'>{{commit.message}}</td>-->
-                                            <td ng-click='contentVisible = !contentVisible'>{{commit.message}}</td>
+                                            <!--<td ng-click='showDiff(repo, commit)' stop-event='click'>{{commit.message}}</td>-->
+                                            <td ng-click='contentVisible = !contentVisible' stop-event='click'>{{commit.message}}</td>
                                             <td>{{commit.age}}</td>
                                             <td>{{commit.date| date}}</td>
                                             <td ng-show="contentVisible">
-                                                <div class="ng-cloak sourcefade" ng-click="contentVisible = false">
-                                                    <div class="sourcehead" ng-click="contentVisible = true">
+                                                <div class="ng-cloak sourcefade" ng-click="contentVisible = false" stop-event='click'>
+                                                    <div class="sourcehead" ng-click="contentVisible = true" stop-event='click'>
                                                         <table>
                                                             <tr>
                                                                 <td><h1>{{repo.name}} {{commit.hash}}</h1><i>{{commit.author}}, {{commit.date| date}}</i></td>
-                                                                <td><button class="btn btn-primary pull-right" ng-click="contentVisible = false">Close</button></td>
+                                                                <td><button class="btn btn-primary pull-right" ng-click="contentVisible = false" stop-event='click'>Close</button></td>
                                                             </tr>
                                                         </table>
                                                         <pre class="sourcepopup prettyprint" source="{{commit.hash}}" repo="{{repo.id}}">...loading...</pre>
@@ -162,16 +162,16 @@ pre.prettyprint {
                                     <tbody>
                                         <tr ng-repeat='file in files'>
                                             <td>{{file.type}}</td>
-                                            <th ng-click='contentVisible = !contentVisible'>{{file.path}}</th>
+                                            <th ng-click='contentVisible = !contentVisible' stop-event='click'>{{file.path}}</th>
                                             <td>{{file.length}}</td>
                                             <td><a href='./{{repo.id}}/get/{{file.path}}?raw=true' target='dl'>Raw</a></td>
                                             <td ng-show="contentVisible">
-                                                <div class="ng-cloak sourcefade" ng-click="contentVisible = false">
-                                                    <div class="sourcehead" ng-click="contentVisible = true">
+                                                <div class="ng-cloak sourcefade" ng-click="contentVisible = false" stop-event='click'>
+                                                    <div class="sourcehead" ng-click="contentVisible = true" stop-event='click'>
                                                         <table>
                                                             <tr>
                                                                 <td><h1>{{repo.name}} {{file.path}}</h1><i></i></td>
-                                                                <td><button class="btn btn-primary pull-right" ng-click="contentVisible = false">Close</button></td>
+                                                                <td><button class="btn btn-primary pull-right" ng-click="contentVisible = false" stop-event='click'>Close</button></td>
                                                             </tr>
                                                         </table>
                                                         <pre ng-show='contentVisible && files' class="sourcepopup prettyprint" source="true" path="{{file.path}}" repo="{{repo.id}}">...loading...</pre>
@@ -197,6 +197,16 @@ href='./{{repo.id}}.zip'>zip</a></td>
         <script src="//cdnjs.cloudflare.com/ajax/libs/prettify/r224/prettify.js" type="text/javascript"></script>
         <script type="text/javascript">
 var app = angular.module('gittattle', []);
+app.directive('stopEvent', function () {
+    return {
+        restrict: 'A',
+        link: function (scope, element, attr) {
+            element.bind(attr.stopEvent, function (e) {
+                e.preventDefault();
+            });
+        }
+    };
+ });
 app.directive('source', function($http) {
     return {
         replace: true,
