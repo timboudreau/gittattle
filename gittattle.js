@@ -408,25 +408,25 @@ function listFiles(req, res) {
             var split = (stdout + '').split('\n');
             var result = [];
             for (var i = 0; i < split.length; i++) {
-                if (rex.test(split[i])) {
-                    var dta = split[i].split(rex);
-                    var isFile = dta[1][0] != 'd';
-                    var name = dta[6].split(/\//gm);
+                var dta = split[i].split(/\s+/);                
+                if (/^([dwrxs-]{10})/.test(dta[0])) {
+                    var isFile = dta[0][0] != 'd';
+                    var name = dta[5].split(/\//gm);
                     if (name && name.length > 0) {
                         name = name[name.length - 1];
                     } else {
-                        name = dta[6];
+                        name = dta[5];
                     }
                     if (isFile) {
                         var item = {
-                            type: dta[1],
+                            type: dta[0],
                             name: name,
-//                        owner: dta[2],
-                            size: parseInt(dta[3]),
-                            date: new Date(Date.parse(dta[4] + ' ' + dta[5])), // XXX timezone
-//                        date: dta[4],
-//                        time: dta[5],
-                            path: dta[6]
+//                        owner: dta[1],
+                            size: parseInt(dta[2]),
+                            date: new Date(Date.parse(dta[3] + ' ' + dta[4])), // XXX timezone
+//                        date: dta[3],
+//                        time: dta[4],
+                            path: dta[5]
                         };
                         result.push(item)
                     }
