@@ -498,7 +498,8 @@ function list(req, res) {
                 return callback(null, repos);
 
             files.forEach(function(file) {
-                if (!isBlacklisted(file)) {
+                var relativepath = dir.replace(config.gitdir + '/', '') + '/' + file;
+                if (!isBlacklisted(file) && !isBlacklisted(relativepath)) {
                     var fullpath = path.join(dir, file);
                     fs.stat(fullpath, function(err, stat) {
                         if (gitpattern.test(file)) {
