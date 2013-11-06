@@ -56,6 +56,10 @@ called with no ``count`` URL parameter
  * ``serveIndexPage : true`` - Should the built-in HTML client be used
  * ``failOnNoDir : true`` - Exit early if the git repositories directory does 
 not exist when the program is started
+ * ``blacklist : []`` - The list of repository names that must'nt be exposed to the world
+ * ``whitelist : []`` - The exhaustive list of repository names that must be exposed to the world
+ * ``listfilter: 'blacklist'`` - The filtering strategy (``blacklist`` by default) - 
+Only necessary to enforce ``whitelist`` when both arrays are defined
 
 
 Web UI
