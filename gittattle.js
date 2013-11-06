@@ -514,7 +514,8 @@ function list(req, res) {
                         }
                     });
                 } else {
-                    --pending;
+                    if (!--pending)
+                        callback(null, repos);
                 }
             });
         });
