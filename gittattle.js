@@ -50,6 +50,13 @@ config.whitelist = config.whitelist.join(' ')
         .replace(/\s+/g, ' ')
         .split(' ');
 
+// Note: When the string is empty, 
+// split returns an array containing one empty string, 
+// rather than an empty array.
+if (config.whitelist[0] == '') {
+    config.whitelist.pop();
+}
+
 // check config.listfilter value
 if (!/^(blacklist|whitelist)$/.test(config.listfilter)) {
     // try autodetection - blacklist takes precedence over whitelist for backwards compatibility
