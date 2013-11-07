@@ -28,7 +28,9 @@ var config = {
     logEntriesPerPage: DEFAULT_COUNT,
     serveIndexPage: true,
     failOnNoDir: true,
-    blacklist: []
+    blacklist: [],
+    whitelist: [],
+    listfilter: ''
 };
 
 // Look for a file named gittattle.json in the process working dir, and
@@ -39,7 +41,38 @@ if (fs.existsSync(filepath)) {
         config[key] = loaded[key]
     }
 }
+
+// ensure gitolite-admin.git is never exposed
 config.blacklist.unshift('gitolite-admin.git');
+config.whitelist = config.whitelist.join(' ')
+        .replace(/gitolite\-admin\.git/g, '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .split(' ');
+
+// check config.listfilter value
+if (!/^(blacklist|whitelist)$/.test(config.listfilter)) {
+    // try autodetection - blacklist takes precedence over whitelist for backwards compatibility
+    config.listfilter = config.whitelist.length > 0 && 
+            config.blacklist.length <= 1 ? 'whitelist' : 'blacklist';
+}
+
+// in case of whitelist we need to allow deep search
+if (/whitelist/.test(config.listfilter)) {
+    var parts = [];
+    config.whitelist.forEach(function(path) {
+        var chunk = path.split(/\//),
+            buildpath = '';
+        chunk.pop();
+        for (var i=0, l=chunk.length; i < l; i++) {
+            buildpath += (i > 0 ? '/' : '') + chunk[i];
+            if (parts.indexOf(buildpath) < 0) {
+                parts.push(buildpath);
+            }
+        }
+    });
+    config.whitelist = config.whitelist.concat(parts);
+}
 
 // Bail out early if gitdir is not set, or if failOnNoDir is true and the
 // dir does not exist
@@ -477,9 +510,14 @@ function list(req, res) {
         return res.end();
     }
     
-    function isBlacklisted(dir) {
-        return config.blacklist && config.blacklist.length > 0 ?
-                config.blacklist.indexOf(dir) >= 0 : false;
+    function isListable(dir, relpath) {
+        var list = config[config.listfilter];
+        if (/blacklist/.test(config.listfilter)) {
+            return list && list.length > 0 ? 
+                list.indexOf(dir) < 0 && list.indexOf(relpath) < 0 : true;
+        }
+        return list && list.length > 0 ? 
+            list.indexOf(dir) >= 0 || list.indexOf(relpath) >= 0 : false;
     }
     
     function sortrepos(a, b) {
@@ -500,7 +538,7 @@ function list(req, res) {
             files.forEach(function(file) {
                 var relativepath = 
                         (dir.replace(config.gitdir, '') + '/' + file).replace(/^\//, '');
-                if (!isBlacklisted(file) && !isBlacklisted(relativepath)) {
+                if (isListable(file, relativepath)) {
                     var fullpath = path.join(dir, file);
                     fs.stat(fullpath, function(err, stat) {
                         if (gitpattern.test(file)) {
