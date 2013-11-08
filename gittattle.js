@@ -260,7 +260,7 @@ function archive(req, res) {
     // support those target formats
     var orepo = deepRepoInst.object(repo);
     var dir = orepo.location;
-    var branch = u.query.branch || 'HEAD';
+    var branch = u.query.branch || 'HEAD' || 'master';
     var fmt = x[2];
     var format = 'tar';
     var cmdline = 'git archive --format='
@@ -395,7 +395,7 @@ function getOneFile(req, res) {
     var dir = repo.location
     var pth = "";
     var raw = u.query.raw;
-    var branch = u.query.branch || 'HEAD';
+    var branch = u.query.branch || 'HEAD' || 'master';
     for (var i = 4; i < portions.length; i++) {
         if (pth.length > 0) {
             pth += '/'
@@ -430,7 +430,7 @@ function listFiles(req, res) {
     var portions = u.pathname.split(/\//g);
     var repo = deepRepoInst.object(portions[portions.length - 2]);
     var dir = repo.location;
-    var branch = u.query.branch || 'master'
+    var branch = u.query.branch || 'HEAD' || 'master';
     var rex = /([dwrxs-]{10})\s+(\S+)\s+(\d+)\s+([\d-]+)\s+([\d:-]+)\s+(.*)$/gm
     fs.exists(dir, function(exists) {
         if (!exists)
