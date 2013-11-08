@@ -531,18 +531,23 @@ function list(req, res) {
         return a.name <= b.name ? -1 : 1;
     }
     
-    function findrepos(dir, callback) {
+    function findrepos(dir, onDone) {
         var repos = [];
         fs.readdir(dir, function(err, files) {
             if (err)
-                return callback(err);
+                return onDone(err);
 
-            var pending = files.length;
-
-            if (!pending)
-                return callback(null, repos);
-
-            files.forEach(function(file) {
+            if (files.length == 0)
+                return onDone(null, repos);
+            
+            function setImmediate(callback) {
+                process.nextTick(callback);
+            }
+            
+            function processFile() {
+                if (files.length == 0)
+                    return onDone(null, repos);
+                var file = files.pop();
                 var relativepath = 
                         (dir.replace(config.gitdir, '') + '/' + file).replace(/^\//, '');
                 if (isListable(file, relativepath)) {
@@ -550,21 +555,19 @@ function list(req, res) {
                     fs.stat(fullpath, function(err, stat) {
                         if (gitpattern.test(file)) {
                             repos.push(deepRepoInst.object(fullpath));
-                            if (!--pending)
-                                callback(null, repos);
+                            setImmediate(processFile);
                         } else if (stat && stat.isDirectory()) {
                             findrepos(fullpath, function(err, res) {
                                 repos = repos.concat(res);
-                                if (!--pending)
-                                    callback(null, repos);
+                                setImmediate(processFile);
                             });
                         }
                     });
                 } else {
-                    if (!--pending)
-                        callback(null, repos);
+                    setImmediate(processFile);
                 }
-            });
+            }
+            setImmediate(processFile);
         });
     }
     
