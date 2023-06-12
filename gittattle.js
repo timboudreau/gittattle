@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 var http = require('http'),
         fs = require('fs'),
-        util = require('util'),
         url = require('url'),
         path = require('path'),
         child_process = require('child_process'),
@@ -53,7 +52,7 @@ config.whitelist = config.whitelist.join(' ')
 // Note: When the string is empty, 
 // split returns an array containing one empty string, 
 // rather than an empty array.
-if (config.whitelist[0] == '') {
+if (config.whitelist[0] === '') {
     config.whitelist.pop();
 }
 
@@ -260,6 +259,11 @@ function archive(req, res) {
     // support those target formats
     var orepo = deepRepoInst.object(repo);
     var dir = orepo.location;
+    // Check against the blacklist
+    if (blocked(dir, res)) {
+        return;
+    }
+
     var branch = u.query.branch || 'HEAD' || 'master';
     var fmt = x[2];
     var format = 'tar';
@@ -385,6 +389,45 @@ function guessContentType(pth) {
     return contentType;
 }
 
+function blocked(dir, res) {
+    console.log( 'test blocked ' + dir, config.blacklist );
+    if (config.blacklist && config.blacklist.length > 0) {
+        for (var i = 0; i < config.blacklist.length; i++) {
+            var item = config.blacklist[i];
+            if (item && dir.indexOf( item ) >= 0) {
+                if (res) {
+                    res.writeHead( 401, {
+                        'Content-Type': 'text/plain; charset=UTF-8',
+                    } );
+                    res.end( 'Forbidden access to ' + dir );
+                }
+                console.log( 'blocked ' + dir );
+                return true;
+            }
+        }
+    } else if (config.whitelist && config.whitelist.length > 0) {
+        var found = false;
+        for (var i = 0; i < config.whitelist.length; i++) {
+            var item = config.whitelist[i];
+            if (item && dir.indexOf( item ) >= 0) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            if (res) {
+                res.writeHead( 401, {
+                    'Content-Type': 'text/plain; charset=UTF-8',
+                } );
+                res.end( 'Forbidden access to ' + dir );
+            }
+            console.log( 'blocked ' + dir );
+            return true;
+        }
+    }
+    return false;
+}
+
 function getOneFile(req, res) {
     // Use git show to list the file - we never actually unpack it to disk,
     // just read the index
@@ -393,6 +436,9 @@ function getOneFile(req, res) {
     var portions = u.pathname.split(/\//g);
     var repo = deepRepoInst.object(portions[2]);
     var dir = repo.location
+    if (blocked(dir, res)) {
+        return;
+    }
     var pth = "";
     var raw = u.query.raw;
     var branch = u.query.branch || 'HEAD' || 'master';
@@ -430,6 +476,9 @@ function listFiles(req, res) {
     var portions = u.pathname.split(/\//g);
     var repo = deepRepoInst.object(portions[portions.length - 2]);
     var dir = repo.location;
+    if (blocked(dir, res)) {
+        return;
+    }
     var branch = u.query.branch || 'HEAD' || 'master';
     var rex = /([dwrxs-]{10})\s+(\S+)\s+(\d+)\s+([\d-]+)\s+([\d:-]+)\s+(.*)$/gm
     fs.exists(dir, function(exists) {
@@ -485,6 +534,9 @@ function log(req, res) {
     var portions = u.pathname.split(/\//g);
     var repo = deepRepoInst.object(portions[portions.length - 1]);
     var dir = repo.location;
+    if (blocked(dir, res)) {
+        return;
+    }
     fs.exists(dir, function(exists) {
         var skip = null;
         var count = config.logEntriesPerPage;
@@ -517,7 +569,13 @@ function list(req, res) {
         return res.end();
     }
     
+    console.log( 'LIST ' + req.uri );
+    
     function isListable(dir, relpath) {
+        if (blocked(dir)) {
+            console.log( 'list blocked ' + dir );
+            return false;
+        }
         var list = config[config.listfilter];
         if (/blacklist/.test(config.listfilter)) {
             return list && list.length > 0 ? 
@@ -533,11 +591,13 @@ function list(req, res) {
     
     function findrepos(dir, onDone) {
         var repos = [];
+        var maxDepth = config.maxDepth || 3;
+        console.log( 'readdir ' + dir );
         fs.readdir(dir, function(err, files) {
             if (err)
                 return onDone(err);
 
-            if (files.length == 0)
+            if (files.length === 0)
                 return onDone(null, repos);
             
             function setImmediate(callback) {
@@ -545,15 +605,18 @@ function list(req, res) {
             }
             
             function processFile() {
-                if (files.length == 0)
+                if (files.length === 0)
                     return onDone(null, repos);
                 var file = files.pop();
+                console.log( 'proc file ' + file );
                 var relativepath = 
                         (dir.replace(config.gitdir, '') + '/' + file).replace(/^\//, '');
                 if (isListable(file, relativepath)) {
                     var fullpath = path.join(dir, file);
+                    console.log( 'stat ' + fullpath );
                     fs.stat(fullpath, function(err, stat) {
                         if (gitpattern.test(file)) {
+                            console.log( 'also check ' + fullpath );
                             repos.push(deepRepoInst.object(fullpath));
                             setImmediate(processFile);
                         } else if (stat && stat.isDirectory()) {
@@ -561,6 +624,8 @@ function list(req, res) {
                                 repos = repos.concat(res);
                                 setImmediate(processFile);
                             });
+                        } else {
+                            setImmediate(processFile);
                         }
                     });
                 } else {
